@@ -3,7 +3,17 @@ from turtle import tilt
 import aiohttp
 import asyncio
 
-from typing import Optional, Any, List, Dict, Coroutine, Generator, Union
+from typing import (
+    Optional,
+    Any,
+    List,
+    Dict,
+    Coroutine,
+    Generator,
+    OrderedDict,
+    Union,
+    Literal,
+)
 from aiohttp import ClientSession
 from enum import Enum
 from typing_extensions import Self
@@ -12,12 +22,12 @@ from .exceptions import *
 
 
 class URLs:
-    base_search_url = 'https://api.mangadex.org/manga'
-    base_chapter_url = 'https://api.mangadex.org/chapter'
-    base_read_url = 'https://mangadex.org/chapter'
-    base_manga_info_url = 'https://mangadex.org/manga'
-    cover_url = 'https://uploads.mangadex.org/covers'
-    scanlation_base_url = 'https://api.mangadex.org/group'
+    base_search_url = "https://api.mangadex.org/manga"
+    base_chapter_url = "https://api.mangadex.org/chapter"
+    base_read_url = "https://mangadex.org/chapter"
+    base_manga_info_url = "https://mangadex.org/manga"
+    cover_url = "https://uploads.mangadex.org/covers"
+    scanlation_base_url = "https://api.mangadex.org/group"
 
 
 class Status:
@@ -26,6 +36,7 @@ class Status:
     hiatus = "hiatus"
     cancelled = "cancelled"
     all_ = [ongoing, completed, hiatus, cancelled]
+
 
 class ContentRating:
     safe = "safe"
@@ -66,26 +77,66 @@ class http:
                 raise NoResultsFound()
             raise APIError()
 
-    async def search(self, *, title: str, limit: int=10, status=Status.all_, content_rating=ContentRating.all_) -> Optional[Union[Manga, List[Manga]]]:
+    async def manga_search(
+        self,
+        *,
+        title: str,
+        limit: int = 10,
+        authors="",
+        artists="",
+        year="",
+        includedTags=None,
+        includedTagsMode: Literal["AND", "OR"] = "AND",
+        excludedTags=None,
+        excludedTagsMode: Literal["AND", "OR"] = "OR",
+        status=Status.all_,
+        originalLanguage=None,
+        availableTranslatedLanguage=None,
+        content_rating=ContentRating.all_,
+        order: str = "[latestUploadedChapter]=desc",
+    ) -> Optional[Union[Manga, List[Manga]]]:
         if isinstance(status, list):
             status = self._convert(status, "status")
         if isinstance(content_rating, list):
             content_rating = self._convert(content_rating, "contentRating")
-        url = f"{URLs.base_search_url}?limit={limit}&includedTagsMode=AND&title={title}&status%5B%5D={status}&contentRating%5B%5D={content_rating}"
+        if isinstance(authors, list):
+            authors = self._convert(authors, "authors")
+        url = f"{URLs.base_search_url}?limit={limit}&includedTagsMode=AND&title={title}&status[]={status}&contentRating[]={content_rating}"
+        for k, v in locals().items():
+            if k not in ["limit", "title", "status", "content_rating"]:
+                if (
+                    not isinstance(v, self.__class__)
+                    and not isinstance(v, list)
+                    and k != "url"
+                    and v
+                ):
+                    if k != "order":
+                        url += f"&{k}={v}"
+                    else:
+                        url += f"&{k}{v}"
+                elif isinstance(v, list) and v:
+                    url += f"&{k}[]={v}"
         return await self._make_req(url)
 
     async def get_manga_by_id(self, id: str) -> Optional[Union[Manga, List[Manga]]]:
         url = f"{URLs.base_search_url}/{id}"
         return await self._make_req(url)
-   
-    async def get_manga_agg(self, id: str, groups: Optional[Union[str, List[str]]] = None, translatedLanguage: Optional[Union[str, List[str]]] = None) -> Optional[MangaAgg]:
+
+    async def get_manga_agg(
+        self,
+        id: str,
+        groups: Optional[Union[str, List[str]]] = None,
+        translatedLanguage: Optional[Union[str, List[str]]] = None,
+    ) -> Optional[MangaAgg]:
         url = f"{URLs.base_search_url}/{id}/aggregate"
         if groups and translatedLanguage:
             if isinstance(groups, list):
                 groups = self._convert(groups, "groups")
             url += f"?={groups}"
             if isinstance(translatedLanguage, list):
-                translatedLanguage = self._convert(translatedLanguage, "translatedLanguage")
+                translatedLanguage = self._convert(
+                    translatedLanguage, "translatedLanguage"
+                )
             url += f"&={translatedLanguage}"
         elif groups:
             if isinstance(groups, list):
@@ -93,7 +144,9 @@ class http:
             url += f"?={groups}"
         else:
             if isinstance(translatedLanguage, list):
-                translatedLanguage = self._convert(translatedLanguage, "translatedLanguage")
+                translatedLanguage = self._convert(
+                    translatedLanguage, "translatedLanguage"
+                )
             url += f"?={translatedLanguage}"
         async with self._session.get(url) as res:
             if res.status == 200:
@@ -103,8 +156,16 @@ class http:
                     return MangaAgg(r)
                 raise NoResultsFound()
             raise APIError()
-        
 
+    async def get_random_manga(
+        self, includes: Union[str, List[str]]="", content_rating=ContentRating.all_
+    ) -> Optional[Union[Manga, List[Manga]]]:
+        if isinstance(content_rating, list):
+            content_rating = self._convert(content_rating, "contentRating")
+        if isinstance(includes, list):
+            includes = self._convert(includes, "includes")
+        url = f"{URLs.base_search_url}/random?contentRating[]={content_rating}&includes[]={includes}"
+        return await self._make_req(url)
 
     # async def get_chapter(self, *, title: str, limit: int=10, status=Status.all_, content_rating=ContentRating.all_) -> List[Dict[str, Any]]:
     #     if isinstance(status, list):
@@ -122,7 +183,6 @@ class http:
 
 
 class PyDex:
-
     def __call__(self, *args: Any, **kwargs: Any) -> Coroutine[Any, Any, Self]:
         return self.start(*args, **kwargs)
 
@@ -133,14 +193,37 @@ class PyDex:
         self.http = await http()
         return self
 
-    async def search(self, *, title: str, limit: int=10, status=Status.all_, content_rating=ContentRating.all_):
-        return await self.http.search(title=title, limit=limit, status=status, content_rating=content_rating)
+    async def manga_search(
+        self,
+        *,
+        title: str,
+        limit: int = 10,
+        status=Status.all_,
+        content_rating=ContentRating.all_,
+    ):
+        return await self.http.manga_search(
+            title=title, limit=limit, status=status, content_rating=content_rating
+        )
 
     async def get_manga_by_id(self, id: str):
         return await self.http.get_manga_by_id(id)
 
-    async def get_manga_agg(self, id: str, *, groups: List[str] = [], translatedLanguage: List[str] = []):
-        return await self.http.get_manga_agg(id, groups=groups, translatedLanguage=translatedLanguage)
+    async def get_manga_agg(
+        self, id: str, *, groups: List[str] = [], translatedLanguage: List[str] = []
+    ):
+        return await self.http.get_manga_agg(
+            id, groups=groups, translatedLanguage=translatedLanguage
+        )
+
+    async def get_random_manga(
+        self,
+        *,
+        includes: List[str] = [],
+        content_rating=ContentRating.all_,
+    ):
+        return await self.http.get_random_manga(
+            includes=includes, content_rating=content_rating
+        )
 
 
 # class MangaDex:
@@ -151,7 +234,7 @@ class PyDex:
 #         self.base_read_url = 'https://mangadex.org/chapter/'
 #         self.base_manga_info_url = 'https://mangadex.org/manga/'
 #         self.cover_url = 'https://uploads.mangadex.org/covers/'
-#         self.emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣']       
+#         self.emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣']
 #         self.scanlation_base_url = 'https://api.mangadex.org/group/'
 #         self.bot = bot
 
@@ -160,7 +243,7 @@ class PyDex:
 #         url = self.base_manga_url + \
 #             f'?limit={limit}&title={query}&availableTranslatedLanguage%5B%5D=en&order%5Btitle%5D=asc'
 
-#         session: ClientSession = self.bot.session  
+#         session: ClientSession = self.bot.session
 #         async with session.get(url) as res:
 #             if res.status == 200:
 #                 resp = await res.read()
@@ -197,7 +280,7 @@ class PyDex:
 
 #     async def get_manga_title(self, id: str) -> Optional[str]:
 #         url: str = self.base_manga_url + id
-#         session: ClientSession = self.bot.session  
+#         session: ClientSession = self.bot.session
 #         async with session.get(url) as res:
 #             if res.status == 200:
 #                 resp = await res.read()
@@ -207,11 +290,11 @@ class PyDex:
 #                 return
 #         r = r['data']
 #         return r['attributes']['title']['en']
-    
+
 
 #     async def get_scanlation_group(self, id: str) -> Optional[Dict[str, str]]:
 #         url: str = self.scanlation_base_url+id
-#         session: ClientSession = self.bot.session  
+#         session: ClientSession = self.bot.session
 #         async with session.get(url) as res:
 #                 if res.status == 200:
 #                     resp = await res.read()
@@ -225,7 +308,7 @@ class PyDex:
 #     async def get_latest(self, id: str) -> Optional[Chapter]:
 #         url: str = self.base_chapter_url + '?limit=5&manga=' + id + \
 #             '&translatedLanguage%5B%5D=en&order%5Bvolume%5D=desc&order%5Bchapter%5D=desc&excludedGroups%5B%5D=4f1de6a2-f0c5-4ac5-bce5-02c7dbb67deb'
-#         session: ClientSession = self.bot.session  
+#         session: ClientSession = self.bot.session
 #         async with session.get(url) as res:
 #                 if res.status == 200:
 #                     resp = await res.read()
@@ -237,7 +320,7 @@ class PyDex:
 #         if len(data)==0:
 #             url = self.base_chapter_url + '?limit=5&manga=' + id + \
 #             '&translatedLanguage%5B%5D=en&order%5Bvolume%5D=desc&order%5Bchapter%5D=desc'
-#             session = self.bot.session  
+#             session = self.bot.session
 #             async with session.get(url) as res:
 #                     if res.status == 200:
 #                         resp = await res.read()
@@ -254,10 +337,10 @@ class PyDex:
 #         translated_lang = attrs['translatedLanguage']
 #         num_of_pages = attrs['pages']
 #         chapter_link = self.base_read_url + data[0]['id'] + '/1'
-        
+
 #         url = f"https://api.mangadex.org/at-home/server/{chapter_id}"
 #         image_urls: List[str] = []
-#         session: ClientSession = self.bot.session  
+#         session: ClientSession = self.bot.session
 #         async with session.get(url) as res:
 #                 if res.status == 200:
 #                     resp = await res.read()
@@ -268,10 +351,10 @@ class PyDex:
 #                     image_server_url = f"{image_server_url}/data"
 #                     for filename in chapter_data:
 #                         image_urls.append(f"{image_server_url}/{chapter_hash}/{filename}")
-                            
+
 #         chapter = Chapter(chapter_id, chapter_title,
 #                           chapter_num, translated_lang, num_of_pages, chapter_link, image_urls, scanlation_id)
-        
+
 #         return chapter
 
 
@@ -279,7 +362,7 @@ class PyDex:
 #         if query:
 #             url = self.base_manga_url + \
 #                 f'?limit=1&title={query}&availableTranslatedLanguage%5B%5D=en'
-#             session: ClientSession = self.bot.session  
+#             session: ClientSession = self.bot.session
 #             async with session.get(url) as res:
 #                 if res.status == 200:
 #                         resp = await res.read()
@@ -292,7 +375,7 @@ class PyDex:
 #             manga_id = rs['id']
 #             manga_info_url = self.base_manga_url + manga_id +\
 #                 "?includes%5B%5D=cover_art&includes%5B%5D=author&includes%5B%5D=artist"
-#             session = self.bot.session  
+#             session = self.bot.session
 #             async with session.get(manga_info_url) as res:
 #                 if res.status == 200:
 #                         resp = await res.read()
