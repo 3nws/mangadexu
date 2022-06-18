@@ -59,12 +59,6 @@ class http:
     def __await__(self):
         return self.start().__await__()
 
-    # __aexit__
-    # def __del__(self):
-    #     task = self.loop.create_task(self.end())
-    #     self.background_tasks.add(task)
-    #     task.add_done_callback(self.background_tasks.discard)
-
     async def start(self):
         loop = asyncio.get_running_loop()
         self.loop = loop
@@ -78,21 +72,20 @@ class http:
                 "password": self.password,
             },
         ) as res:
-            print(res.headers)
-            print(res.text)
             if res.status == 200:
                 resp = await res.read()
                 r = json.loads(resp)
                 self._session_token = r["token"]["session"]
                 self._refresh_token = r["token"]["refresh"]
+                print(self._session_token)
             else:
                 raise UserPasswordMissMatch()
         return self
 
-    # async def end(self):
-    #     async with self._session.post("https://api.mangadex.org/auth/logout") as res:
-    #         if res.status == 200:
-    #             print("logged out")
+    async def end(self):
+        async with self._session.post("https://api.mangadex.org/auth/logout") as res:
+            if res.status == 200:
+                print("logged out")
 
     def _convert(self, arr: List[str], type: str) -> str:
         res: str = f"&{type}[]=".join(arr)
@@ -225,8 +218,11 @@ class PyDex:
     def __call__(self, *args: Any, **kwargs: Any) -> Coroutine[Any, Any, Self]:
         return self.start(*args, **kwargs)
 
-    def __await__(self) -> Generator[Any, Any, Self]:
-        return self.start().__await__()
+    async def __aenter__(self):
+        return await self.start()
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.http.end()
 
     async def start(self) -> Self:
         self.http = await http(self.username, self.email, self.password)
