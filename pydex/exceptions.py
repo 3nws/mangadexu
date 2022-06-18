@@ -3,3 +3,6 @@ class NoResultsFound(BaseException):
 
 class APIError(BaseException):
     pass
+
+class UserPasswordMissMatch(BaseException):
+    pass

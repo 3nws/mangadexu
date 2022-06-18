@@ -1,5 +1,4 @@
 import json
-from turtle import tilt
 import aiohttp
 import asyncio
 
@@ -50,15 +49,50 @@ class http:
 
     _session: ClientSession
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, username: str, email: Optional[str], password: str) -> None:
+        self.loop: asyncio.AbstractEventLoop
+        self.username = username
+        self.email = email
+        self.password = password
+        self.background_tasks = set()
 
     def __await__(self):
         return self.start().__await__()
 
+    # __aexit__
+    # def __del__(self):
+    #     task = self.loop.create_task(self.end())
+    #     self.background_tasks.add(task)
+    #     task.add_done_callback(self.background_tasks.discard)
+
     async def start(self):
+        loop = asyncio.get_running_loop()
+        self.loop = loop
         self._session = aiohttp.ClientSession()
+        async with self._session.post(
+            "https://api.mangadex.org/auth/login",
+            headers={"Content-Type": "application/json"},
+            json={
+                "username": self.username,
+                "email": self.email,
+                "password": self.password,
+            },
+        ) as res:
+            print(res.headers)
+            print(res.text)
+            if res.status == 200:
+                resp = await res.read()
+                r = json.loads(resp)
+                self._session_token = r["token"]["session"]
+                self._refresh_token = r["token"]["refresh"]
+            else:
+                raise UserPasswordMissMatch()
         return self
+
+    # async def end(self):
+    #     async with self._session.post("https://api.mangadex.org/auth/logout") as res:
+    #         if res.status == 200:
+    #             print("logged out")
 
     def _convert(self, arr: List[str], type: str) -> str:
         res: str = f"&{type}[]=".join(arr)
@@ -158,7 +192,7 @@ class http:
             raise APIError()
 
     async def get_random_manga(
-        self, includes: Union[str, List[str]]="", content_rating=ContentRating.all_
+        self, includes: Union[str, List[str]] = "", content_rating=ContentRating.all_
     ) -> Optional[Union[Manga, List[Manga]]]:
         if isinstance(content_rating, list):
             content_rating = self._convert(content_rating, "contentRating")
@@ -183,6 +217,11 @@ class http:
 
 
 class PyDex:
+    def __init__(self, *, username: str, email: str="", password: str) -> None:
+        self.username = username
+        self.email = email
+        self.password = password
+
     def __call__(self, *args: Any, **kwargs: Any) -> Coroutine[Any, Any, Self]:
         return self.start(*args, **kwargs)
 
@@ -190,7 +229,7 @@ class PyDex:
         return self.start().__await__()
 
     async def start(self) -> Self:
-        self.http = await http()
+        self.http = await http(self.username, self.email, self.password)
         return self
 
     async def manga_search(
