@@ -86,6 +86,7 @@ class http:
         async with self._session.post("https://api.mangadex.org/auth/logout") as res:
             if res.status == 200:
                 print("logged out")
+        await self._session.close()
 
     def _convert(self, arr: List[str], type: str) -> str:
         res: str = f"&{type}[]=".join(arr)
