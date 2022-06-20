@@ -1,7 +1,21 @@
-from typing import Dict, Any
+from typing import Dict, Any, List, Union
 
 
+class Tags:
 
+    def __init__(self, tags: Union[str, List[str]], type: str) -> None:
+        self.tags = self._convert(tags, type)
+
+    def _convert(self, arr: Union[str, List[str]], type: str) -> str:
+        if len(arr) == 1:
+            res = f"&{type}[]={arr[0]}"
+        else:
+            res = f"&{type}[]=".join(arr)
+        print(res)
+        return res
+
+    def __str__(self) -> str:
+        return self.tags
 
 class MangaAttributes:
 
