@@ -2,20 +2,23 @@ from typing import Dict, Any, List, Union
 
 
 class Tags:
-
     def __init__(self, tags: Union[str, List[str]], type: str) -> None:
         self.tags = self._convert(tags, type)
 
     def _convert(self, arr: Union[str, List[str]], type: str) -> str:
         if len(arr) == 1:
             res = f"&{type}[]={arr[0]}"
+        elif type in ["contentRating", "status"]:
+            res = ""
+            for t in arr:
+                res += f"&{type}[]={t}"
         else:
             res = f"&{type}[]=".join(arr)
-        print(res)
         return res
 
     def __str__(self) -> str:
         return self.tags
+
 
 class MangaAttributes:
 
@@ -38,7 +41,7 @@ class MangaAttributes:
         "createdAt",
         "updatedAt",
         "version",
-        "availableTranslatedLanguages"
+        "availableTranslatedLanguages",
     )
 
     def __init__(self, response: Dict[str, Any]) -> None:
@@ -56,22 +59,20 @@ class MangaAttributes:
         self.contentRating = response.get("contentRating", "")
         self.tags = response.get("tags", "")
         self.state = response.get("state", "")
-        self.chapterNumbersResetOnNewVolume = response.get("chapterNumbersResetOnNewVolume", "")
+        self.chapterNumbersResetOnNewVolume = response.get(
+            "chapterNumbersResetOnNewVolume", ""
+        )
         self.createdAt = response.get("createdAt", "")
         self.updatedAt = response.get("updatedAt", "")
         self.version = response.get("version", "")
-        self.availableTranslatedLanguages = response.get("availableTranslatedLanguages", "")
-        
+        self.availableTranslatedLanguages = response.get(
+            "availableTranslatedLanguages", ""
+        )
 
 
 class Manga:
 
-    __slots__ = (
-        "id",
-        "type",
-        "attributes",
-        "relationships"
-    )
+    __slots__ = ("id", "type", "attributes", "relationships")
 
     def __init__(self, response: Dict[str, Any]) -> None:
         self.id = response.get("id", "")
@@ -81,13 +82,9 @@ class Manga:
 
 
 class ChapterAgg:
-    
-    __slots__ = (
-        "chapter",
-        "id",
-        "others",
-        "count"
-    )
+
+    __slots__ = ("chapter", "id", "others", "count")
+
     def __init__(self, response: Dict[str, Any]) -> None:
         self.chapter = response.get("chapter", "")
         self.id = response.get("id", "")
@@ -97,23 +94,19 @@ class ChapterAgg:
 
 class VolumeAgg:
 
-    __slots__ = (
-        "volume",
-        "count",
-        "chapters"
-    )
+    __slots__ = ("volume", "count", "chapters")
 
     def __init__(self, response: Dict[str, Any]) -> None:
         self.volume = response.get("volume", "")
         self.count = response.get("count", None)
-        self.chapters = [ChapterAgg(response["chapters"][c]) for c in response["chapters"]]
+        self.chapters = [
+            ChapterAgg(response["chapters"][c]) for c in response["chapters"]
+        ]
 
 
 class MangaAgg:
 
-    __slots__ = (
-        "volumes",
-    )
+    __slots__ = ("volumes",)
 
     def __init__(self, response: Dict[str, Any]) -> None:
         self.volumes = [VolumeAgg(response["volumes"][v]) for v in response["volumes"]]

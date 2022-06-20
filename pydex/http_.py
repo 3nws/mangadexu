@@ -67,22 +67,22 @@ class http:
         loop = asyncio.get_running_loop()
         self.loop = loop
         self._session = aiohttp.ClientSession()
-        async with self._session.post(
-            "https://api.mangadex.org/auth/login",
-            headers=self.headers,
-            json={
-                "username": self.username,
-                "email": self.email,
-                "password": self.password,
-            },
-        ) as res:
-            if res.status == 200:
-                resp = await res.read()
-                r = json.loads(resp)
-                self._session_token = r["token"]["session"]
-                self._refresh_token = r["token"]["refresh"]
-            else:
-                raise UserPasswordMissMatch()
+        # async with self._session.post(
+        #     "https://api.mangadex.org/auth/login",
+        #     headers=self.headers,
+        #     json={
+        #         "username": self.username,
+        #         "email": self.email,
+        #         "password": self.password,
+        #     },
+        # ) as res:
+        #     if res.status == 200:
+        #         resp = await res.read()
+        #         r = json.loads(resp)
+        #         self._session_token = r["token"]["session"]
+        #         self._refresh_token = r["token"]["refresh"]
+        #     else:
+        #         raise UserPasswordMissMatch()
         return self
 
     async def end(self):
@@ -109,8 +109,8 @@ class http:
 
     async def _manga_search(
         self,
-        *,
         title: str,
+        *,
         limit: int = 10,
         offset: str = "",
         authors: str = Tags([], "authors").tags,
@@ -129,7 +129,7 @@ class http:
         contentRating: str = Tags([], "contentRating").tags,
         order: str = "[latestUploadedChapter]=desc",
         includes: str = Tags([], "includes").tags,
-        hasAvailableChapters: Optional[bool] = None,
+        hasAvailableChapters: Optional[Union[str, bool]] = None,
         group: str = "",
         createdAtSince: str = "",
         updatedAtSince: str = "",
@@ -172,9 +172,16 @@ class http:
 
         if status:
             status = Tags(status, "status").tags
+        else:
+            status = Tags(Status.all_, "status").tags
 
         if contentRating:
             contentRating = Tags(contentRating, "contentRating").tags
+        else:
+            contentRating = Tags(ContentRating.all_, "contentRating").tags
+
+        if hasAvailableChapters is not None:
+            hasAvailableChapters = str(hasAvailableChapters).lower()
 
         url = f"{URLs.base_search_url}?limit={limit}&title={title}"
         for k, v in locals().items():
@@ -190,8 +197,9 @@ class http:
                     else:
                         url += f"&{k}{v}"
                 elif isinstance(v, list) and v or k in ["status", "contentRating"]:
+                    if k == "hasAvailableChapters":
+                        print("HAS")
                     url += f"&{k}[]={v}"
-        print(url)
         results = await self._get(url)
         if results["data"]:
             if isinstance(results["data"], list):
@@ -210,17 +218,20 @@ class http:
     async def get_manga_agg(
         self,
         id: str,
+        *,
         groups: str = Tags([], "groups").tags,
         translatedLanguage: str = Tags([], "translatedLanguage").tags,
     ) -> Optional[MangaAgg]:
-        url = f"{URLs.base_search_url}/{id}/aggregate?id={id}"
+        url = f"{URLs.base_search_url}/{id}/aggregate"
         if groups:
             groups = Tags(groups, "groups").tags
-        if translatedLanguage:
+            url += f"?groups={groups}"
+        elif translatedLanguage and groups:
             translatedLanguage = Tags(translatedLanguage, "translatedLanguage").tags
-        for k, v in locals().items():
-            if k in ["groups", "translatedLanguage"]:
-                url += f"&{k}={v}"
+            url += f"&translatedLanguage={translatedLanguage}"
+        else:
+            translatedLanguage = Tags(translatedLanguage, "translatedLanguage").tags
+            url += f"?translatedLanguage={translatedLanguage}"
         result = await self._get(url)
         if result:
             if result["result"] != "error":
@@ -230,13 +241,13 @@ class http:
     async def get_random_manga(
         self,
         includes: str = Tags([], "includes").tags,
-        contentRating: str = Tags(ContentRating.all_, "contentRating").tags,
+        contentRating: str = Tags([], "contentRating").tags,
     ) -> Response:
         if includes:
             includes = Tags(includes, "includes").tags
         if contentRating:
             contentRating = Tags(contentRating, "contentRating").tags
-        url = f"{URLs.base_search_url}/random?contentRating[]={contentRating}&includes[]={includes}"
+        url = f"{URLs.base_search_url}/random?{contentRating}&includes[]={includes}"
         result = await self._get(url)
         if not result:
             raise NoResultsFound()
@@ -280,8 +291,8 @@ class PyDex:
         self.http = await http(self.username, self.email, self.password)
         return self
 
-    async def manga_search(self, *, title: str, **kwargs):
-        return await self.http._manga_search(title=title, **kwargs)
+    async def manga_search(self, title: str, **kwargs):
+        return await self.http._manga_search(title, **kwargs)
 
     async def get_manga_by_id(self, id: str):
         return await self.http.get_manga_by_id(id)
