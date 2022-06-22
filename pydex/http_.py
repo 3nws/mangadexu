@@ -289,9 +289,6 @@ class PyDex:
         self.email = email
         self.password = password
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Coroutine[Any, Any, Self]:
-        return self.start(*args, **kwargs)
-
     async def __aenter__(self):
         return await self.start()
 
