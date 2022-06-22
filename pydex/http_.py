@@ -67,22 +67,23 @@ class http:
         loop = asyncio.get_running_loop()
         self.loop = loop
         self._session = aiohttp.ClientSession()
-        # async with self._session.post(
-        #     "https://api.mangadex.org/auth/login",
-        #     headers=self.headers,
-        #     json={
-        #         "username": self.username,
-        #         "email": self.email,
-        #         "password": self.password,
-        #     },
-        # ) as res:
-        #     if res.status == 200:
-        #         resp = await res.read()
-        #         r = json.loads(resp)
-        #         self._session_token = r["token"]["session"]
-        #         self._refresh_token = r["token"]["refresh"]
-        #     else:
-        #         raise UserPasswordMissMatch()
+        async with self._session.post(
+            "https://api.mangadex.org/auth/login",
+            headers=self.headers,
+            json={
+                "username": self.username,
+                "email": self.email,
+                "password": self.password,
+            },
+        ) as res:
+            if res.status == 200:
+                resp = await res.read()
+                r = json.loads(resp)
+                self._session_token = r["token"]["session"]
+                self._refresh_token = r["token"]["refresh"]
+                self.headers["Authorization"] = f"Bearer {self._session_token}"
+            else:
+                raise UserPasswordMissMatch()
         return self
 
     async def end(self):
@@ -101,9 +102,12 @@ class http:
 
     async def _post(self, url: str, payload: ReqBody) -> Response:
         async with self._session.post(url, json=payload, headers=self.headers) as res:
-            if res.status == 200:
+            print(res)
+            if res.status > 200 and res.status < 300:
                 resp = await res.read()
                 r = json.loads(resp)
+                if r:
+                    return Manga(r["data"])
                 raise NoResultsFound()
             raise APIError()
 
@@ -208,14 +212,14 @@ class http:
                 return Manga(results["data"])
         raise NoResultsFound()
 
-    async def get_manga_by_id(self, id: str) -> Response:
+    async def _get_manga_by_id(self, id: str) -> Response:
         url = f"{URLs.base_search_url}/{id}"
         result = await self._get(url)
         if not result:
             raise NoResultsFound()
         return Manga(result["data"])
 
-    async def get_manga_agg(
+    async def _get_manga_agg(
         self,
         id: str,
         *,
@@ -238,7 +242,7 @@ class http:
                 return MangaAgg(result)
         raise NoResultsFound()
 
-    async def get_random_manga(
+    async def _get_random_manga(
         self,
         includes: str = Tags([], "includes").tags,
         contentRating: str = Tags([], "contentRating").tags,
@@ -253,7 +257,7 @@ class http:
             raise NoResultsFound()
         return Manga(result["data"])
 
-    async def get_chapter(
+    async def _get_chapter(
         self,
         *,
         title: str,
@@ -270,6 +274,13 @@ class http:
         url = f"{URLs.base_search_url}?limit={limit}&includedTagsMode=AND&title={title}&status={status}&contentRating={contentRating}"
         result = await self._get(url)
         return result.get("data", [])
+
+    async def _create_manga(
+        self,
+        manga: ReqBody
+    ) -> Response:
+        url = f"{URLs.base_search_url}"
+        return await self._post(url, manga)
 
 
 class PyDex:
@@ -295,10 +306,13 @@ class PyDex:
         return await self.http._manga_search(title, **kwargs)
 
     async def get_manga_by_id(self, id: str):
-        return await self.http.get_manga_by_id(id)
+        return await self.http._get_manga_by_id(id)
 
     async def get_manga_agg(self, id: str, **kwargs):
-        return await self.http.get_manga_agg(id, **kwargs)
+        return await self.http._get_manga_agg(id, **kwargs)
 
     async def get_random_manga(self, **kwargs):
-        return await self.http.get_random_manga(**kwargs)
+        return await self.http._get_random_manga(**kwargs)
+
+    async def create_manga(self, manga: ReqBody):
+        return await self.http._create_manga(manga)

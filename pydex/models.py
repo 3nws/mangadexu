@@ -44,28 +44,28 @@ class MangaAttributes:
         "availableTranslatedLanguages",
     )
 
-    def __init__(self, response: Dict[str, Any]) -> None:
-        self.title = response.get("title", "").get("en", "")  # type: ignore
-        self.altTitles = response.get("altTitles", "")
-        self.description = response.get("description", "")
-        self.isLocked = response.get("isLocked", "")
-        self.links = response.get("links", "")
-        self.originalLanguage = response.get("originalLanguage", "")
-        self.lastVolume = response.get("lastVolume", "")
-        self.lastChapter = response.get("lastChapter", "")
-        self.publicationDemographic = response.get("publicationDemographic", "")
-        self.status = response.get("status", "")
-        self.year = response.get("year", "")
-        self.contentRating = response.get("contentRating", "")
-        self.tags = response.get("tags", "")
-        self.state = response.get("state", "")
-        self.chapterNumbersResetOnNewVolume = response.get(
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        self.title = payload.get("title", "").get("en", "")  # type: ignore
+        self.altTitles = payload.get("altTitles", "")
+        self.description = payload.get("description", "")
+        self.isLocked = payload.get("isLocked", "")
+        self.links = payload.get("links", "")
+        self.originalLanguage = payload.get("originalLanguage", "")
+        self.lastVolume = payload.get("lastVolume", "")
+        self.lastChapter = payload.get("lastChapter", "")
+        self.publicationDemographic = payload.get("publicationDemographic", "")
+        self.status = payload.get("status", "")
+        self.year = payload.get("year", "")
+        self.contentRating = payload.get("contentRating", "")
+        self.tags = payload.get("tags", "")
+        self.state = payload.get("state", "")
+        self.chapterNumbersResetOnNewVolume = payload.get(
             "chapterNumbersResetOnNewVolume", ""
         )
-        self.createdAt = response.get("createdAt", "")
-        self.updatedAt = response.get("updatedAt", "")
-        self.version = response.get("version", "")
-        self.availableTranslatedLanguages = response.get(
+        self.createdAt = payload.get("createdAt", "")
+        self.updatedAt = payload.get("updatedAt", "")
+        self.version = payload.get("version", "")
+        self.availableTranslatedLanguages = payload.get(
             "availableTranslatedLanguages", ""
         )
 
@@ -74,33 +74,33 @@ class Manga:
 
     __slots__ = ("id", "type", "attributes", "relationships")
 
-    def __init__(self, response: Dict[str, Any]) -> None:
-        self.id = response.get("id", "")
-        self.type = response.get("type", "")
-        self.attributes = MangaAttributes(response.get("attributes", ""))
-        self.relationships = response.get("relationships", "")
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        self.id = payload.get("id", "")
+        self.type = payload.get("type", "")
+        self.attributes = MangaAttributes(payload.get("attributes", ""))
+        self.relationships = payload.get("relationships", "")
 
 
 class ChapterAgg:
 
     __slots__ = ("chapter", "id", "others", "count")
 
-    def __init__(self, response: Dict[str, Any]) -> None:
-        self.chapter = response.get("chapter", "")
-        self.id = response.get("id", "")
-        self.others = response["others"]
-        self.count = response.get("count", None)
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        self.chapter = payload.get("chapter", "")
+        self.id = payload.get("id", "")
+        self.others = payload["others"]
+        self.count = payload.get("count", None)
 
 
 class VolumeAgg:
 
     __slots__ = ("volume", "count", "chapters")
 
-    def __init__(self, response: Dict[str, Any]) -> None:
-        self.volume = response.get("volume", "")
-        self.count = response.get("count", None)
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        self.volume = payload.get("volume", "")
+        self.count = payload.get("count", None)
         self.chapters = [
-            ChapterAgg(response["chapters"][c]) for c in response["chapters"]
+            ChapterAgg(payload["chapters"][c]) for c in payload["chapters"]
         ]
 
 
@@ -108,5 +108,51 @@ class MangaAgg:
 
     __slots__ = ("volumes",)
 
-    def __init__(self, response: Dict[str, Any]) -> None:
-        self.volumes = [VolumeAgg(response["volumes"][v]) for v in response["volumes"]]
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        self.volumes = [VolumeAgg(payload["volumes"][v]) for v in payload["volumes"]]
+
+class MangaRequest:
+
+    __slots__ = (
+        "payload",
+        "title",
+        "altTitles", 
+        "description", 
+        "authors",
+        "artists",
+        "links",
+        "originalLanguage",
+        "lastVolume",
+        "lastChapter",
+        "publicationDemographic",
+        "status",
+        "year",
+        "contentRating",
+        "chapterNumberResetOnNewVolume",
+        "tags",
+        "primaryCover",
+        "version"
+        )
+
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        self.payload = payload
+        self.title = payload.get("title", "")
+        self.altTitles = payload.get("altTitles", [])
+        self.description = payload.get("description", "")
+        self.authors = payload.get("authors", [])
+        self.artists = payload.get("artists", [])
+        self.links = payload.get("links", [])
+        self.originalLanguage = payload.get("originalLanguage", "")
+        self.lastVolume = payload.get("lastVolume", "")
+        self.lastChapter = payload.get("lastChapter", "")
+        self.publicationDemographic = payload.get("publicationDemographic", "")
+        self.status = payload.get("status", "")
+        self.year = payload.get("year", "")
+        self.contentRating = payload.get("contentRating", "")
+        self.chapterNumberResetOnNewVolume = payload.get("chapterNumberResetOnNewVolume", "")
+        self.tags = payload.get("tags", [])
+        self.primaryCover = payload.get("primaryCover", "")
+        self.version = payload.get("version", "")
+
+    def json(self):
+        return self.payload
