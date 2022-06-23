@@ -106,7 +106,8 @@ class http:
         if self._session is None:
             await self._make_session()
         async with self._session.get(url) as res:
-            if res.status == 200:
+            # print(await res.json())
+            if res.status >= 200 and res.status < 300:
                 resp = await res.read()
                 r = json.loads(resp)
                 return r
@@ -116,8 +117,8 @@ class http:
         if self._session is None:
             await self._make_session()
         async with self._session.post(url, json=payload) as res:
-            print(res)
-            if res.status > 200 and res.status < 300:
+            # print(await res.json())
+            if res.status >= 200 and res.status < 300:
                 resp = await res.read()
                 r = json.loads(resp)
                 if r:
@@ -128,15 +129,31 @@ class http:
     async def _put(self, url: str, payload: ReqBody) -> Response:
         if self._session is None:
             await self._make_session()
-        async with self._session.post(url, json=payload) as res:
-            print(res)
-            if res.status > 200 and res.status < 300:
+        async with self._session.put(url, json=payload) as res:
+            # print(await res.json())
+            if res.status >= 200 and res.status < 300:
                 resp = await res.read()
                 r = json.loads(resp)
                 if r:
                     return Manga(r["data"])
                 raise NoResultsFound()
             raise APIError()
+
+    async def _delete(self, url: str) -> None:
+        if self._session is None:
+            await self._make_session()
+        id = url.split('/')[-1]
+        async with self._session.delete(url) as res:
+            # print(await res.json())
+            if res.status >= 200 and res.status < 300:
+                resp = await res.read()
+                r = json.loads(resp)
+                if r:
+                    print(f"Manga with id: {id} has been deleted.")
+                else:
+                    raise NoResultsFound()
+            else:
+                raise APIError()
 
     async def _manga_search(
         self,
@@ -315,7 +332,14 @@ class http:
         manga: ReqBody
     ) -> Response:
         url = f"{URLs.base_search_url}"
-        return await self._put(url, manga)
+        return await self._put(f"{url}/{id}", manga)
+
+    async def _delete_manga(
+        self,
+        id: str,
+    ) -> Response:
+        url = f"{URLs.base_search_url}/{id}"
+        return await self._delete(url)
 
 
 class PyDex:
@@ -351,3 +375,6 @@ class PyDex:
 
     async def update_manga(self, id: str, manga: ReqBody):
         return await self.http._update_manga(id, manga)
+
+    async def delete_manga(self, id: str):
+        return await self.http._delete_manga(id)

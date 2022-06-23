@@ -53,7 +53,6 @@ async def main():
         manga = await client.get_random_manga(
             includes=["shounen", "romance"], contentRating=["safe"]
         )
-        print(manga.json())
         manga = await client.create_manga(
             {
                 "title": {"additionalProp1": "TEST"},
@@ -62,14 +61,17 @@ async def main():
                 "contentRating": "safe",
             }
         )
-        print(manga.attributes.json(), manga.json())
         manga = await client.update_manga(manga.id, {
-            "title": {"additionalProp1": "TEST2"},
-                "originalLanguage": "en",
-                "status": "ongoing",
-                "contentRating": "safe",
+                "title": {
+                    "additionalProp1": "TEST2"
+                },
+                "originalLanguage": "ja",
+                "status": "completed",
+                "contentRating": "suggestive",
+                "version": 1
         })
-        print(manga.attributes.json(), manga.json())
+        print(manga)
+        resp = await client.delete_manga(manga.id)
     while True:
         pass
 
