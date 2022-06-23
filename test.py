@@ -50,9 +50,10 @@ async def main():
         # )
         # manga = await client.get_manga_by_id("32fdfe9b-6e11-4a13-9e36-dcd8ea77b4e4")
         # manga = await client.get_manga_agg("32fdfe9b-6e11-4a13-9e36-dcd8ea77b4e4", translatedLanguage=["en", "de"])
-        # manga = await client.get_random_manga(
-        #     includes=["shounen", "romance"], contentRating=["safe"]
-        # )
+        manga = await client.get_random_manga(
+            includes=["shounen", "romance"], contentRating=["safe"]
+        )
+        print(manga.json())
         manga = await client.create_manga(
             {
                 "title": {"additionalProp1": "TEST"},

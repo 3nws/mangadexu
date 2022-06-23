@@ -64,7 +64,7 @@ class http:
         return self.start().__await__()
 
     async def _make_session(self):
-        self._session = aiohttp.ClientSession()
+        self._session = aiohttp.ClientSession(headers=self.headers)
 
     async def start(self):
         loop = asyncio.get_running_loop()
@@ -74,7 +74,6 @@ class http:
         if self.username and self.password:
             async with self._session.post(
                 "https://api.mangadex.org/auth/login",
-                headers=self.headers,
                 json={
                     "username": self.username,
                     "email": self.email,
@@ -87,6 +86,8 @@ class http:
                     self._session_token = r["token"]["session"]
                     self._refresh_token = r["token"]["refresh"]
                     self.headers["Authorization"] = f"Bearer {self._session_token}"
+                    await self._session.close()
+                    self._session = aiohttp.ClientSession(headers=self.headers)
                     self._logged = True
                 else:
                     raise UserPasswordMissMatch()
@@ -114,7 +115,7 @@ class http:
     async def _post(self, url: str, payload: ReqBody) -> Response:
         if self._session is None:
             await self._make_session()
-        async with self._session.post(url, json=payload, headers=self.headers) as res:
+        async with self._session.post(url, json=payload) as res:
             print(res)
             if res.status > 200 and res.status < 300:
                 resp = await res.read()
@@ -127,7 +128,7 @@ class http:
     async def _put(self, url: str, payload: ReqBody) -> Response:
         if self._session is None:
             await self._make_session()
-        async with self._session.post(url, json=payload, headers=self.headers) as res:
+        async with self._session.post(url, json=payload) as res:
             print(res)
             if res.status > 200 and res.status < 300:
                 resp = await res.read()
