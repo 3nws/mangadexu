@@ -61,7 +61,14 @@ async def main():
                 "contentRating": "safe",
             }
         )
-        print(manga)
+        print(manga.attributes.json(), manga.json())
+        manga = await client.update_manga(manga.id, {
+            "title": {"additionalProp1": "TEST2"},
+                "originalLanguage": "en",
+                "status": "ongoing",
+                "contentRating": "safe",
+        })
+        print(manga.attributes.json(), manga.json())
     while True:
         pass
 

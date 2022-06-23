@@ -23,6 +23,7 @@ class Tags:
 class MangaAttributes:
 
     __slots__ = (
+        "payload",
         "title",
         "altTitles",
         "description",
@@ -45,6 +46,7 @@ class MangaAttributes:
     )
 
     def __init__(self, payload: Dict[str, Any]) -> None:
+        self.payload = payload
         self.title = payload.get("title", "").get("en", "")  # type: ignore
         self.altTitles = payload.get("altTitles", "")
         self.description = payload.get("description", "")
@@ -69,16 +71,23 @@ class MangaAttributes:
             "availableTranslatedLanguages", ""
         )
 
+    def json(self):
+        return self.payload
+
 
 class Manga:
 
-    __slots__ = ("id", "type", "attributes", "relationships")
+    __slots__ = ("payload", "id", "type", "attributes", "relationships")
 
     def __init__(self, payload: Dict[str, Any]) -> None:
+        self.payload = payload
         self.id = payload.get("id", "")
         self.type = payload.get("type", "")
         self.attributes = MangaAttributes(payload.get("attributes", ""))
         self.relationships = payload.get("relationships", "")
+
+    def json(self):
+        return self.payload
 
 
 class ChapterAgg:
@@ -111,13 +120,14 @@ class MangaAgg:
     def __init__(self, payload: Dict[str, Any]) -> None:
         self.volumes = [VolumeAgg(payload["volumes"][v]) for v in payload["volumes"]]
 
+
 class MangaRequest:
 
     __slots__ = (
         "payload",
         "title",
-        "altTitles", 
-        "description", 
+        "altTitles",
+        "description",
         "authors",
         "artists",
         "links",
@@ -131,8 +141,8 @@ class MangaRequest:
         "chapterNumberResetOnNewVolume",
         "tags",
         "primaryCover",
-        "version"
-        )
+        "version",
+    )
 
     def __init__(self, payload: Dict[str, Any]) -> None:
         self.payload = payload
@@ -149,7 +159,9 @@ class MangaRequest:
         self.status = payload.get("status", "")
         self.year = payload.get("year", "")
         self.contentRating = payload.get("contentRating", "")
-        self.chapterNumberResetOnNewVolume = payload.get("chapterNumberResetOnNewVolume", "")
+        self.chapterNumberResetOnNewVolume = payload.get(
+            "chapterNumberResetOnNewVolume", ""
+        )
         self.tags = payload.get("tags", [])
         self.primaryCover = payload.get("primaryCover", "")
         self.version = payload.get("version", "")

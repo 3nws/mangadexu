@@ -59,40 +59,53 @@ class http:
         self.password = password
         self.background_tasks = set()
         self.headers = {"Content-Type": "application/json"}
+        self._logged = False
+        self._session: Optional[ClientSession] = None
 
     def __await__(self):
         return self.start().__await__()
 
+    async def _make_session(self):
+        self._session = aiohttp.ClientSession()
+
     async def start(self):
         loop = asyncio.get_running_loop()
         self.loop = loop
-        self._session = aiohttp.ClientSession()
-        async with self._session.post(
-            "https://api.mangadex.org/auth/login",
-            headers=self.headers,
-            json={
-                "username": self.username,
-                "email": self.email,
-                "password": self.password,
-            },
-        ) as res:
-            if res.status == 200:
-                resp = await res.read()
-                r = json.loads(resp)
-                self._session_token = r["token"]["session"]
-                self._refresh_token = r["token"]["refresh"]
-                self.headers["Authorization"] = f"Bearer {self._session_token}"
-            else:
-                raise UserPasswordMissMatch()
+        if self._session is None:
+            await self._make_session()
+        if self.username and self.password:
+            async with self._session.post(
+                "https://api.mangadex.org/auth/login",
+                headers=self.headers,
+                json={
+                    "username": self.username,
+                    "email": self.email,
+                    "password": self.password,
+                },
+            ) as res:
+                if res.status == 200:
+                    resp = await res.read()
+                    r = json.loads(resp)
+                    self._session_token = r["token"]["session"]
+                    self._refresh_token = r["token"]["refresh"]
+                    self.headers["Authorization"] = f"Bearer {self._session_token}"
+                    self._logged = True
+                else:
+                    raise UserPasswordMissMatch()
         return self
 
     async def end(self):
-        async with self._session.post("https://api.mangadex.org/auth/logout") as res:
-            if res.status == 200:
-                print("logged out")
-        await self._session.close()
+        if self._session is None:
+            await self._make_session()
+        if self._logged:
+            async with self._session.post("https://api.mangadex.org/auth/logout") as res:
+                if res.status == 200:
+                    print("logged out")
+            await self._session.close()
 
     async def _get(self, url: str) -> Dict[str, Any]:
+        if self._session is None:
+            await self._make_session()
         async with self._session.get(url) as res:
             if res.status == 200:
                 resp = await res.read()
@@ -101,6 +114,21 @@ class http:
             raise APIError()
 
     async def _post(self, url: str, payload: ReqBody) -> Response:
+        if self._session is None:
+            await self._make_session()
+        async with self._session.post(url, json=payload, headers=self.headers) as res:
+            print(res)
+            if res.status > 200 and res.status < 300:
+                resp = await res.read()
+                r = json.loads(resp)
+                if r:
+                    return Manga(r["data"])
+                raise NoResultsFound()
+            raise APIError()
+
+    async def _put(self, url: str, payload: ReqBody) -> Response:
+        if self._session is None:
+            await self._make_session()
         async with self._session.post(url, json=payload, headers=self.headers) as res:
             print(res)
             if res.status > 200 and res.status < 300:
@@ -282,6 +310,14 @@ class http:
         url = f"{URLs.base_search_url}"
         return await self._post(url, manga)
 
+    async def _update_manga(
+        self,
+        id: str,
+        manga: ReqBody
+    ) -> Response:
+        url = f"{URLs.base_search_url}"
+        return await self._put(url, manga)
+
 
 class PyDex:
     def __init__(self, *, username: str, email: str = "", password: str) -> None:
@@ -311,5 +347,8 @@ class PyDex:
     async def get_random_manga(self, **kwargs):
         return await self.http._get_random_manga(**kwargs)
 
-    async def create_manga(self, manga: ReqBody):
+    async def create_manga(self, manga: ReqBody) -> Response:
         return await self.http._create_manga(manga)
+
+    async def update_manga(self, id: str, manga: ReqBody):
+        return await self.http._update_manga(id, manga)
