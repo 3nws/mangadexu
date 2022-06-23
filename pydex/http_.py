@@ -50,8 +50,6 @@ class ContentRating:
 
 class http:
 
-    _session: ClientSession
-
     def __init__(self, username: str, email: Optional[str], password: str) -> None:
         self.loop: asyncio.AbstractEventLoop
         self.username = username
