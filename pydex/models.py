@@ -80,14 +80,16 @@ class Manga:
     __slots__ = ("payload", "id", "type", "attributes", "relationships")
 
     def __init__(self, payload: Dict[str, Any]) -> None:
-        self.payload = payload
-        self.id = payload.get("id", "")
-        self.type = payload.get("type", "")
-        self.attributes = MangaAttributes(payload.get("attributes", ""))
-        self.relationships = payload.get("relationships", "")
+        if payload:
+            self.payload = payload
+            self.id = payload.get("id", "")
+            self.type = payload.get("type", "")
+            self.attributes = MangaAttributes(payload.get("attributes", ""))
+            self.relationships = payload.get("relationships", "")
 
     def json(self):
-        return self.payload
+        if self.payload:
+            return self.payload
 
 
 class ChapterAgg:
@@ -165,6 +167,86 @@ class MangaRequest:
         self.tags = payload.get("tags", [])
         self.primaryCover = payload.get("primaryCover", "")
         self.version = payload.get("version", "")
+
+    def json(self):
+        return self.payload
+
+class Relationship:
+
+    __slots__ = (
+        "payload",
+        "id",
+        "type",
+        "related",
+        "attributes"
+    )
+
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        if payload:
+            self.payload = payload
+            print(payload)
+            self.id = payload.get("id", "")
+            self.type = payload.get("type", "")
+            self.related = payload.get("related", "")
+            self.attributes = payload.get("attributes", "")
+
+    def json(self):
+        return self.payload
+
+class ChapterAttributes:
+
+    __slots__ = (
+        "payload",
+        "title",
+        "volume",
+        "chapter",
+        "pages",
+        "translatedLanguage",
+        "uploader",
+        "externalUrl",
+        "version",
+        "createdAt",
+        "updatedAt",
+        "publishAt",
+        "readableAt",
+    )
+
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        self.payload = payload
+        self.title = payload.get("title", "")
+        self.volume = payload.get("volume", "")
+        self.chapter = payload.get("chapter", "")
+        self.pages = payload.get("pages", 0)
+        self.translatedLanguage = payload.get("translatedLanguage", "")
+        self.uploader = payload.get("uploader", "")
+        self.externalUrl = payload.get("externalUrl", "")
+        self.version = payload.get("version", "")
+        self.createdAt = payload.get("createdAt", "")
+        self.updatedAt = payload.get("updatedAt", "")
+        self.publishAt = payload.get("publishAt", "")
+        self.readableAt = payload.get("readableAt", "")
+
+    def json(self):
+        return self.payload
+
+
+class Chapter:
+
+    __slots__ = (
+        "payload",
+        "id",
+        "type",
+        "attributes",
+        "relationships"
+    )
+
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        if payload:
+            self.payload = payload
+            self.id = payload.get("id", "")
+            self.type = payload.get("type", "")
+            self.attributes = ChapterAttributes(payload.get("attributes", ""))
+            self.relationships = [Relationship(r) for r in payload.get("relationships", [])]
 
     def json(self):
         return self.payload

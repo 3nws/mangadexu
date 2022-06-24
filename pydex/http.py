@@ -1,4 +1,5 @@
 import json
+from optparse import Option
 import aiohttp
 import asyncio
 
@@ -20,7 +21,7 @@ from .models import *
 from .exceptions import *
 
 ReqBody = Dict[str, Any]
-Response = Optional[Union[Manga, List[Manga]]]
+Response = Optional[Union[Manga, List[Manga], Chapter, List[Chapter]]]
 
 
 class URLs:
@@ -122,7 +123,7 @@ class http:
                 resp = await res.read()
                 r = json.loads(resp)
                 if r:
-                    return Manga(r["data"])
+                    return Manga(r.get("data", None))
                 raise NoResultsFound()
             raise APIError()
 
@@ -149,7 +150,7 @@ class http:
                 resp = await res.read()
                 r = json.loads(resp)
                 if r:
-                    print(f"Manga with id: {id} has been deleted.")
+                    print(f"Manga with id: {id} has been deleted/unfollowed.")
                 else:
                     raise NoResultsFound()
             else:
@@ -160,7 +161,7 @@ class http:
         title: str,
         *,
         limit: int = 10,
-        offset: str = "",
+        offset: Optional[int] = None,
         authors: str = Tags([], "authors").tags,
         artists: str = Tags([], "artists").tags,
         year: Union[str, int] = "",
@@ -245,8 +246,6 @@ class http:
                     else:
                         url += f"&{k}{v}"
                 elif isinstance(v, list) and v or k in ["status", "contentRating"]:
-                    if k == "hasAvailableChapters":
-                        print("HAS")
                     url += f"&{k}[]={v}"
         results = await self._get(url)
         if results["data"]:
@@ -341,40 +340,87 @@ class http:
         url = f"{URLs.base_search_url}/{id}"
         return await self._delete(url)
 
+    async def _follow_manga(
+        self,
+        id: str,
+    ) -> Response:
+        url = f"{URLs.base_search_url}/{id}/follow"
+        return await self._post(url, payload={})
 
-class PyDex:
-    def __init__(self, *, username: str, email: str = "", password: str) -> None:
-        self.username = username
-        self.email = email
-        self.password = password
+    async def _unfollow_manga(
+        self,
+        id: str,
+    ) -> Response:
+        url = f"{URLs.base_search_url}/{id}/follow"
+        return await self._delete(url)
 
-    async def __aenter__(self):
-        return await self.start()
+    async def _get_manga_feed(
+            self,
+            id: str,
+            *,
+            limit: int = 10,
+            offset: Optional[int] = None,
+            translatedLanguage: str = Tags([], "translatedLanguage").tags,
+            originalLanguage: str = Tags([], "originalLanguage").tags,
+            excludedOriginalLanguage: str = Tags([], "excludedOriginalLanguage").tags,
+            contentRating: str = Tags([], "contentRating").tags,
+            excludedGroups: str = Tags([], "excludedGroups").tags,
+            excludedUploaders: str = Tags([], "excludedUploaders").tags,
+            includeFutureUpdates: Optional[Union[str, bool]] = True,
+            createdAtSince: str = "",
+            updatedAtSince: str = "",
+            publishAtSince: str = "",
+            order: str = "[createdAt]=asc&order[updatedAt]=asc&order[publishAt]=asc&order[readableAt]=asc&order[volume]=asc&order[chapter]=asc",
+            includes: str = Tags([], "includes").tags,
+        ) -> Response:
 
-    async def __aexit__(self, exc_type, exc, tb):
-        await self.http.end()
+            if translatedLanguage:
+                translatedLanguage = Tags(translatedLanguage, "translatedLanguage").tags
 
-    async def start(self) -> Self:
-        self.http = await http(self.username, self.email, self.password)
-        return self
+            if originalLanguage:
+                originalLanguage = Tags(originalLanguage, "originalLanguage").tags
 
-    async def manga_search(self, title: str, **kwargs):
-        return await self.http._manga_search(title, **kwargs)
+            if excludedOriginalLanguage:
+                excludedOriginalLanguage = Tags(
+                    excludedOriginalLanguage, "excludedOriginalLanguage"
+                ).tags
 
-    async def get_manga_by_id(self, id: str):
-        return await self.http._get_manga_by_id(id)
+            if includes:
+                includes = Tags(includes, "includes").tags
 
-    async def get_manga_agg(self, id: str, **kwargs):
-        return await self.http._get_manga_agg(id, **kwargs)
+            if excludedGroups:
+                excludedGroups = Tags(excludedGroups, "excludedGroups").tags
+                
+            if excludedUploaders:
+                excludedUploaders = Tags(excludedUploaders, "excludedUploaders").tags
 
-    async def get_random_manga(self, **kwargs):
-        return await self.http._get_random_manga(**kwargs)
+            if contentRating:
+                contentRating = Tags(contentRating, "contentRating").tags
+            else:
+                contentRating = Tags(ContentRating.all_, "contentRating").tags
 
-    async def create_manga(self, manga: ReqBody) -> Response:
-        return await self.http._create_manga(manga)
+            if includeFutureUpdates is not None:
+                includeFutureUpdates = str(includeFutureUpdates).lower()
 
-    async def update_manga(self, id: str, manga: ReqBody):
-        return await self.http._update_manga(id, manga)
-
-    async def delete_manga(self, id: str):
-        return await self.http._delete_manga(id)
+            url = f"{URLs.base_search_url}/{id}/feed?limit={limit}"
+            for k, v in locals().items():
+                if k not in ["limit", "id"]:
+                    if (
+                        not isinstance(v, self.__class__)
+                        and not isinstance(v, list)
+                        and k != "url"
+                        and v
+                    ):
+                        if k != "order":
+                            url += f"&{k}={v}"
+                        else:
+                            url += f"&{k}{v}"
+                    elif isinstance(v, list) and v or k in ["contentRating"]:
+                        url += f"&{k}[]={v}"
+            results = await self._get(url)
+            if results["data"]:
+                if isinstance(results["data"], list):
+                    return [Chapter(c) for c in results["data"]]
+                else:
+                    return Chapter(results["data"])
+            raise NoResultsFound()
