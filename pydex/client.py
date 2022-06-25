@@ -1,5 +1,6 @@
 
 from typing_extensions import Self
+from typing import Optional
 
 from .http import http, ReqBody, Response
 from .models import *
@@ -49,3 +50,18 @@ class PyDex:
 
     async def get_manga_feed(self, id: str, **kwargs):
         return await self.http._get_manga_feed(id, **kwargs)
+
+    async def get_tags(self):
+        return await self.http._get_tags()
+
+    async def get_my_list(self, status: Optional[str]=None):
+        return await self.http._get_my_list(status=status)
+
+    async def get_manga_status(self, id: str):
+        return await self.http._get_manga_status(id=id)
+
+    async def update_manga_status(self, id: str, *, status: Optional[str]=None):
+        return await self.http._update_manga_status(id=id, status=status)
+
+    async def get_manga_draft(self, id: str, **kwargs):
+        return await self.http._get_manga_draft(id, **kwargs)

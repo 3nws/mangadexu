@@ -21,7 +21,7 @@ from .models import *
 from .exceptions import *
 
 ReqBody = Dict[str, Any]
-Response = Optional[Union[Manga, List[Manga], Chapter, List[Chapter]]]
+Response = Optional[Union[Manga, List[Manga], Chapter, List[Chapter], ReqBody]]
 
 
 class URLs:
@@ -424,3 +424,52 @@ class http:
                 else:
                     return Chapter(results["data"])
             raise NoResultsFound()
+
+    async def _get_tags(
+        self
+    ) -> Response:
+        url = f"{URLs.base_search_url}/tag"
+        return await self._get(url)
+
+    async def _get_my_list(
+        self,
+        *,
+        status: Optional[str]=None
+    ) -> Response:
+        url = f"{URLs.base_search_url}/status"
+        if status:
+            url += f"?status={status}"
+        return await self._get(url)
+
+    async def _get_manga_status(
+        self,
+        *,
+        id: str
+    ) -> Response:
+        url = f"{URLs.base_search_url}/{id}/status"
+        return await self._get(url)
+
+    async def _update_manga_status(
+        self,
+        *,
+        id: str,
+        status: Optional[str]=None,
+    ) -> Response:
+        url = f"{URLs.base_search_url}/{id}/status"
+        if status is None:
+            status = "null"
+        return await self._post(url, {
+            "status": status
+        })
+
+    async def _get_manga_draft(
+        self,
+        id: str,
+        *,
+        includes: str = Tags([], "includes").tags,
+    ) -> Response:
+        url = f"{URLs.base_search_url}/draft/{id}"
+        if includes:
+            includes = Tags(includes, "includes").tags
+            url += f"?includes[]={includes}"
+        return Manga((await self._get(url))["data"])
