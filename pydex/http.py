@@ -21,7 +21,7 @@ from .models import *
 from .exceptions import *
 
 ReqBody = Dict[str, Any]
-Response = Optional[Union[Manga, List[Manga], Chapter, List[Chapter], ReqBody]]
+Response = Optional[Union[Manga, List[Manga], Chapter, List[Chapter], ReqBody, MangaRelation]]
 
 
 class URLs:
@@ -50,7 +50,6 @@ class ContentRating:
 
 
 class http:
-
     def __init__(self, username: str, email: Optional[str], password: str) -> None:
         self.loop: asyncio.AbstractEventLoop
         self.username = username
@@ -98,7 +97,9 @@ class http:
         if self._session is None:
             await self._make_session()
         if self._logged:
-            async with self._session.post("https://api.mangadex.org/auth/logout") as res:
+            async with self._session.post(
+                "https://api.mangadex.org/auth/logout"
+            ) as res:
                 if res.status == 200:
                     print("logged out")
             await self._session.close()
@@ -118,11 +119,13 @@ class http:
         if self._session is None:
             await self._make_session()
         async with self._session.post(url, json=payload) as res:
-            # print(await res.json())
+            print(await res.json())
             if res.status >= 200 and res.status < 300:
                 resp = await res.read()
                 r = json.loads(resp)
                 if r:
+                    if r.get("type", "") == "manga_relation":
+                        return MangaRelation(r.get("data", None))
                     return Manga(r.get("data", None))
                 raise NoResultsFound()
             raise APIError()
@@ -143,7 +146,7 @@ class http:
     async def _delete(self, url: str) -> None:
         if self._session is None:
             await self._make_session()
-        id = url.split('/')[-1]
+        id = url.split("/")[-1]
         async with self._session.delete(url) as res:
             # print(await res.json())
             if res.status >= 200 and res.status < 300:
@@ -318,18 +321,11 @@ class http:
         result = await self._get(url)
         return result.get("data", [])
 
-    async def _create_manga(
-        self,
-        manga: ReqBody
-    ) -> Response:
+    async def _create_manga(self, manga: ReqBody) -> Response:
         url = f"{URLs.base_search_url}"
         return await self._post(url, manga)
 
-    async def _update_manga(
-        self,
-        id: str,
-        manga: ReqBody
-    ) -> Response:
+    async def _update_manga(self, id: str, manga: ReqBody) -> Response:
         url = f"{URLs.base_search_url}"
         return await self._put(f"{url}/{id}", manga)
 
@@ -355,97 +351,87 @@ class http:
         return await self._delete(url)
 
     async def _get_manga_feed(
-            self,
-            id: str,
-            *,
-            limit: int = 10,
-            offset: Optional[int] = None,
-            translatedLanguage: str = Tags([], "translatedLanguage").tags,
-            originalLanguage: str = Tags([], "originalLanguage").tags,
-            excludedOriginalLanguage: str = Tags([], "excludedOriginalLanguage").tags,
-            contentRating: str = Tags([], "contentRating").tags,
-            excludedGroups: str = Tags([], "excludedGroups").tags,
-            excludedUploaders: str = Tags([], "excludedUploaders").tags,
-            includeFutureUpdates: Optional[Union[str, bool]] = True,
-            createdAtSince: str = "",
-            updatedAtSince: str = "",
-            publishAtSince: str = "",
-            order: str = "[createdAt]=asc&order[updatedAt]=asc&order[publishAt]=asc&order[readableAt]=asc&order[volume]=asc&order[chapter]=asc",
-            includes: str = Tags([], "includes").tags,
-        ) -> Response:
-
-            if translatedLanguage:
-                translatedLanguage = Tags(translatedLanguage, "translatedLanguage").tags
-
-            if originalLanguage:
-                originalLanguage = Tags(originalLanguage, "originalLanguage").tags
-
-            if excludedOriginalLanguage:
-                excludedOriginalLanguage = Tags(
-                    excludedOriginalLanguage, "excludedOriginalLanguage"
-                ).tags
-
-            if includes:
-                includes = Tags(includes, "includes").tags
-
-            if excludedGroups:
-                excludedGroups = Tags(excludedGroups, "excludedGroups").tags
-                
-            if excludedUploaders:
-                excludedUploaders = Tags(excludedUploaders, "excludedUploaders").tags
-
-            if contentRating:
-                contentRating = Tags(contentRating, "contentRating").tags
-            else:
-                contentRating = Tags(ContentRating.all_, "contentRating").tags
-
-            if includeFutureUpdates is not None:
-                includeFutureUpdates = str(includeFutureUpdates).lower()
-
-            url = f"{URLs.base_search_url}/{id}/feed?limit={limit}"
-            for k, v in locals().items():
-                if k not in ["limit", "id"]:
-                    if (
-                        not isinstance(v, self.__class__)
-                        and not isinstance(v, list)
-                        and k != "url"
-                        and v
-                    ):
-                        if k != "order":
-                            url += f"&{k}={v}"
-                        else:
-                            url += f"&{k}{v}"
-                    elif isinstance(v, list) and v or k in ["contentRating"]:
-                        url += f"&{k}[]={v}"
-            results = await self._get(url)
-            if results["data"]:
-                if isinstance(results["data"], list):
-                    return [Chapter(c) for c in results["data"]]
-                else:
-                    return Chapter(results["data"])
-            raise NoResultsFound()
-
-    async def _get_tags(
-        self
+        self,
+        id: str,
+        *,
+        limit: int = 10,
+        offset: Optional[int] = None,
+        translatedLanguage: str = Tags([], "translatedLanguage").tags,
+        originalLanguage: str = Tags([], "originalLanguage").tags,
+        excludedOriginalLanguage: str = Tags([], "excludedOriginalLanguage").tags,
+        contentRating: str = Tags([], "contentRating").tags,
+        excludedGroups: str = Tags([], "excludedGroups").tags,
+        excludedUploaders: str = Tags([], "excludedUploaders").tags,
+        includeFutureUpdates: Optional[Union[str, bool]] = True,
+        createdAtSince: str = "",
+        updatedAtSince: str = "",
+        publishAtSince: str = "",
+        order: str = "[createdAt]=asc&order[updatedAt]=asc&order[publishAt]=asc&order[readableAt]=asc&order[volume]=asc&order[chapter]=asc",
+        includes: str = Tags([], "includes").tags,
     ) -> Response:
+
+        if translatedLanguage:
+            translatedLanguage = Tags(translatedLanguage, "translatedLanguage").tags
+
+        if originalLanguage:
+            originalLanguage = Tags(originalLanguage, "originalLanguage").tags
+
+        if excludedOriginalLanguage:
+            excludedOriginalLanguage = Tags(
+                excludedOriginalLanguage, "excludedOriginalLanguage"
+            ).tags
+
+        if includes:
+            includes = Tags(includes, "includes").tags
+
+        if excludedGroups:
+            excludedGroups = Tags(excludedGroups, "excludedGroups").tags
+
+        if excludedUploaders:
+            excludedUploaders = Tags(excludedUploaders, "excludedUploaders").tags
+
+        if contentRating:
+            contentRating = Tags(contentRating, "contentRating").tags
+        else:
+            contentRating = Tags(ContentRating.all_, "contentRating").tags
+
+        if includeFutureUpdates is not None:
+            includeFutureUpdates = str(includeFutureUpdates).lower()
+
+        url = f"{URLs.base_search_url}/{id}/feed?limit={limit}"
+        for k, v in locals().items():
+            if k not in ["limit", "id"]:
+                if (
+                    not isinstance(v, self.__class__)
+                    and not isinstance(v, list)
+                    and k != "url"
+                    and v
+                ):
+                    if k != "order":
+                        url += f"&{k}={v}"
+                    else:
+                        url += f"&{k}{v}"
+                elif isinstance(v, list) and v or k in ["contentRating"]:
+                    url += f"&{k}[]={v}"
+        results = await self._get(url)
+        if results["data"]:
+            if isinstance(results["data"], list):
+                return [Chapter(c) for c in results["data"]]
+            else:
+                return Chapter(results["data"])
+        raise NoResultsFound()
+
+    async def _get_tags(self) -> Response:
         url = f"{URLs.base_search_url}/tag"
         return await self._get(url)
 
-    async def _get_my_list(
-        self,
-        *,
-        status: Optional[str]=None
-    ) -> Response:
+    async def _get_my_list(self, *, status: Optional[str] = None) -> Response:
         url = f"{URLs.base_search_url}/status"
         if status:
             url += f"?status={status}"
         return await self._get(url)
 
-    async def _get_manga_status(
-        self,
-        *,
-        id: str
-    ) -> Response:
+    async def _get_manga_status(self, *, id: str) -> Response:
         url = f"{URLs.base_search_url}/{id}/status"
         return await self._get(url)
 
@@ -453,14 +439,12 @@ class http:
         self,
         *,
         id: str,
-        status: Optional[str]=None,
+        status: Optional[str] = None,
     ) -> Response:
         url = f"{URLs.base_search_url}/{id}/status"
         if status is None:
             status = "null"
-        return await self._post(url, {
-            "status": status
-        })
+        return await self._post(url, {"status": status})
 
     async def _get_manga_draft(
         self,
@@ -473,3 +457,76 @@ class http:
             includes = Tags(includes, "includes").tags
             url += f"?includes[]={includes}"
         return Manga((await self._get(url))["data"])
+
+    async def _submit_manga_draft(self, id: str, manga: ReqBody) -> Response:
+        url = f"{URLs.base_search_url}/draft/{id}/commit"
+        return await self._post(url, manga)
+
+    async def _get_drafts(
+        self,
+        limit: Optional[int],
+        *,
+        state: Optional[Literal["draft", "submitted", "rejected"]],
+        offset: Optional[int] = None,
+        order: str = "[createdAt]=desc",
+        includes: str = Tags([], "includes").tags,
+    ) -> Response:
+        url = f"{URLs.base_search_url}/draft?limit={limit}"
+        if state:
+            url += f"&state={state}"
+        if offset:
+            url += f"&offset={offset}"
+        if includes:
+            includes = Tags(includes, "includes").tags
+            url += f"&includes={includes}"
+        return await self._get(url)
+
+    async def _get_manga_relations(
+        self,
+        id: str,
+        *,
+        includes: str = Tags([], "includes").tags,
+    ) -> Response:
+        url = f"{URLs.base_search_url}/{id}/relation"
+        if includes:
+            includes = Tags(includes, "includes").tags
+            url += f"?includes={includes}"
+        return await self._get(url)
+
+    async def _add_relation(
+        self,
+        id: str,
+        *,
+        targetManga: str,
+        relation: Literal[
+            "monochrome",
+            "main_story",
+            "adapted_from",
+            "based_on",
+            "prequel",
+            "side_story",
+            "doujinshi",
+            "same_franchise",
+            "shared_universe",
+            "sequel",
+            "spin_off",
+            "alternate_story",
+            "alternate_version",
+            "preserialization",
+            "colored",
+            "serialization",
+        ],
+    ) -> Response:
+        url = f"{URLs.base_search_url}/{id}/relation"
+        return await self._post(url, {
+            "targetManga": targetManga,
+            "relation": relation
+        })
+
+    async def _delete_relation(
+        self,
+        id: str,
+        mangaId: str
+    ) -> Response:
+        url = f"{URLs.base_search_url}/{mangaId}/relation/{id}"
+        return await self._delete(url)

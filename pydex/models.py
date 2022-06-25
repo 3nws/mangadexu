@@ -250,3 +250,41 @@ class Chapter:
 
     def json(self):
         return self.payload
+
+class MangaRelationAttributes:
+
+    __slots__ = (
+        "payload",
+        "relation",
+        "version"
+    )
+
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        if payload:
+            self.payload = payload
+            self.relation = payload.get("relation", "")
+            self.version = payload.get("version", 1)
+    
+    def json(self):
+        return self.payload
+
+class MangaRelation:
+
+    __slots__ = (
+        "payload",
+        "id",
+        "type",
+        "attributes",
+        "relationships"
+    )
+
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        if payload:
+            self.payload = payload
+            self.id = payload.get("id", "")
+            self.type = payload.get("type", "")
+            self.attributes = MangaRelationAttributes(payload.get("attributes", ""))
+            self.relationships = [Relationship(r) for r in payload.get("relationships", [])]
+
+    def json(self):
+        return self.payload

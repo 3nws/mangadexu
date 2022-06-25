@@ -50,28 +50,46 @@ async def main():
         #     status=["ongoing"],
         # )
         # manga = await client.get_manga_by_id("32fdfe9b-6e11-4a13-9e36-dcd8ea77b4e4")
+        # print(manga.attributes.json())
         # manga = await client.get_manga_agg("32fdfe9b-6e11-4a13-9e36-dcd8ea77b4e4", translatedLanguage=["en", "de"])
         # manga = await client.get_random_manga(
         #     includes=["shounen", "romance"], contentRating=["safe"]
         # )
-        manga = await client.create_manga(
-            {
-                "title": {"additionalProp1": "TEST"},
-                "originalLanguage": "en",
-                "status": "ongoing",
-                "contentRating": "safe",
-            }
-        )
-        manga_id = manga.id
-        # manga = await client.update_manga(manga.id, {
-        #         "title": {
-        #             "additionalProp1": "TEST2"
-        #         },
-        #         "originalLanguage": "ja",
-        #         "status": "completed",
-        #         "contentRating": "suggestive",
-        #         "version": 1
-        # })
+        # manga = await client.create_manga(
+        #     {
+        #         "title": {"additionalProp1": "TESTa"},
+        #         "originalLanguage": "en",
+        #         "status": "ongoing",
+        #         "contentRating": "safe",
+        #         # "cover": "https://i.imgur.com/cfYsAJH.png",
+        #         "version": 1,
+        #     }
+        # )
+        # manga_id = manga.id
+        # manga = await client.create_manga(
+        #     {
+        #         "title": {"additionalProp1": "TESTa"},
+        #         "originalLanguage": "en",
+        #         "status": "ongoing",
+        #         "contentRating": "safe",
+        #         # "cover": "https://i.imgur.com/cfYsAJH.png",
+        #         "version": 1,
+        #     }
+        # )
+        # manga_id2 = manga.id
+        # manga = await client.update_manga(
+        #     manga.id,
+        #     {
+        #         "title": {"additionalProp1": "TEST2"},
+        #         "originalLanguage": "en",
+        #         "status": "ongoing",
+        #         "contentRating": "safe",
+        #         "authors": ["14b9cd88-3f29-4cf4-8c46-72f51dda924f"],
+        #         "artists": ["14b9cd88-3f29-4cf4-8c46-72f51dda924f"],
+        #         "cover": "https://i.imgur.com/cfYsAJH.png",
+        #         "version": 1,
+        #     },
+        # )
         # manga = await client.follow_manga(manga_id)
         # print(manga)
         # await client.unfollow_manga(manga_id)
@@ -93,6 +111,24 @@ async def main():
         # print(status)
         # draft = await client.get_manga_draft(manga_id)
         # print(draft.json())
+        # draft = await client.submit_manga_draft(
+        #     "be435719-a2ef-4f0e-852e-bceb6bb502a7",
+        #     {
+        #         "title": {"additionalProp1": "TESTa"},
+        #         "originalLanguage": "en",
+        #         "status": "ongoing",
+        #         "contentRating": "safe",
+        #         "version": 1,
+        #     },
+        # )
+        # print(draft.json())
+        # drafts = await client.get_drafts(10, state="draft", order={"createdAt": "desc"}, includes=["TEST"])
+        # print(drafts)
+        # relation = await client.add_relation(manga_id, targetManga=manga_id2, relation="monochrome")
+        # print(relation)
+        # relations = await client.get_manga_relations(manga_id2, includes=["kanojo"])
+        # print(relations)
+        # await client.delete_relation(manga_id, relation.id)
     while True:
         pass
 

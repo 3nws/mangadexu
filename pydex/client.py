@@ -65,3 +65,18 @@ class PyDex:
 
     async def get_manga_draft(self, id: str, **kwargs):
         return await self.http._get_manga_draft(id, **kwargs)
+
+    async def submit_manga_draft(self, id: str, manga: ReqBody):
+        return await self.http._submit_manga_draft(id, manga)
+
+    async def get_drafts(self, limit: Optional[int] = 10, **kwargs):
+        return await self.http._get_drafts(limit, **kwargs)
+
+    async def get_manga_relations(self, id: str, **kwargs):
+        return await self.http._get_manga_relations(id, **kwargs)
+
+    async def add_relation(self, id: str, **kwargs):
+        return await self.http._add_relation(id, **kwargs)
+
+    async def delete_relation(self, id: str, mangaId: str):
+        return await self.http._delete_relation(id, mangaId)
