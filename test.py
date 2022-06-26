@@ -1,5 +1,4 @@
 import asyncio
-from xml.etree.ElementInclude import include
 
 from pydex.client import PyDex
 from config import *
@@ -129,8 +128,10 @@ async def main():
         # relations = await client.get_manga_relations(manga_id2, includes=["kanojo"])
         # print(relations)
         # await client.delete_relation(manga_id, relation.id)
+        # covers = await client.get_covers(limit=5, manga=["a96676e5-8ae2-425e-b549-7f15dd34a6d8", "37f5cce0-8070-4ada-96e5-fa24b1bd4ff9"])
+        # print(covers)
     while True:
         pass
-
+    
 
 asyncio.run(main())

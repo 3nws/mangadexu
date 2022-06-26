@@ -1,3 +1,4 @@
+from this import d
 from typing import Dict, Any, List, Union
 
 
@@ -184,7 +185,6 @@ class Relationship:
     def __init__(self, payload: Dict[str, Any]) -> None:
         if payload:
             self.payload = payload
-            print(payload)
             self.id = payload.get("id", "")
             self.type = payload.get("type", "")
             self.related = payload.get("related", "")
@@ -288,3 +288,48 @@ class MangaRelation:
 
     def json(self):
         return self.payload
+
+class CoverAttributes:
+
+    __slots__ = (
+        "payload",
+        "volume",
+        "fileName",
+        "description",
+        "locale",
+        "version",
+        "createdAt",
+        "updatedAt"
+    )
+    
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        if payload:
+            self.payload = payload
+            self.volume = payload.get("volume", "")
+            self.fileName = payload.get("fileName", "")
+            self.description = payload.get("description", "")
+            self.locale = payload.get("locale", "")
+            self.version = payload.get("version", 1)
+            self.createdAt = payload.get("createdAt", "")
+            self.updatedAt = payload.get("updatedAt", "")
+
+    def json(self):
+        return self.payload
+
+class Cover:
+
+    __slots__ = (
+        "payload",
+        "id",
+        "type",
+        "attributes",
+        "relationships"
+    )
+
+    def __init__(self, payload: Dict[str, Any]) -> None:
+        if payload:
+            self.payload = payload
+            self.id = payload.get("id", "")
+            self.type = payload.get("type", "")
+            self.attributes = CoverAttributes(payload.get("attributes", ""))
+            self.relationships = [Relationship(r) for r in payload.get("relationships", [])]

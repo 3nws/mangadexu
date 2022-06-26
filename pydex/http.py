@@ -1,5 +1,4 @@
 import json
-from optparse import Option
 import aiohttp
 import asyncio
 
@@ -8,20 +7,15 @@ from typing import (
     Any,
     List,
     Dict,
-    Coroutine,
-    Generator,
-    OrderedDict,
     Union,
     Literal,
 )
 from aiohttp import ClientSession
-from enum import Enum
-from typing_extensions import Self
 from .models import *
 from .exceptions import *
 
 ReqBody = Dict[str, Any]
-Response = Optional[Union[Manga, List[Manga], Chapter, List[Chapter], ReqBody, MangaRelation]]
+Response = Optional[Union[Manga, List[Manga], Chapter, List[Chapter], ReqBody, MangaRelation, Cover, List[Cover]]]
 
 
 class URLs:
@@ -29,7 +23,7 @@ class URLs:
     base_chapter_url = "https://api.mangadex.org/chapter"
     base_read_url = "https://mangadex.org/chapter"
     base_manga_info_url = "https://mangadex.org/manga"
-    cover_url = "https://uploads.mangadex.org/covers"
+    cover_url = "https://api.mangadex.org/cover"
     scanlation_base_url = "https://api.mangadex.org/group"
 
 
@@ -119,7 +113,7 @@ class http:
         if self._session is None:
             await self._make_session()
         async with self._session.post(url, json=payload) as res:
-            print(await res.json())
+            # print(await res.json())
             if res.status >= 200 and res.status < 300:
                 resp = await res.read()
                 r = json.loads(resp)
@@ -530,3 +524,48 @@ class http:
     ) -> Response:
         url = f"{URLs.base_search_url}/{mangaId}/relation/{id}"
         return await self._delete(url)
+
+    async def _get_covers(
+        self,
+        *,
+        limit: Optional[int]=10,
+        offset: Optional[int] = None,
+        manga: str = Tags([], "manga").tags,
+        ids: str = Tags([], "ids").tags,
+        uploaders: str = Tags([], "uploaders").tags,
+        locales: str = Tags([], "locales").tags,
+        order: str = "[createdAt]=asc&order[updatedAt]=asc&order[volume]=asc",
+        includes: str = Tags([], "includes").tags,
+    ) -> Response:
+        if manga:
+            manga = Tags(manga, "manga").tags
+        if ids:
+            ids = Tags(ids, "ids").tags
+        if uploaders:
+            uploaders = Tags(uploaders, "uploaders").tags
+        if locales:
+            locales = Tags(locales, "locales").tags
+        if includes:
+            includes = Tags(includes, "includes").tags
+        url = f"{URLs.cover_url}?limit={limit}"
+        for k, v in locals().items():
+            if k not in ["limit"]:
+                if (
+                    not isinstance(v, self.__class__)
+                    and not isinstance(v, list)
+                    and k != "url"
+                    and v
+                ):
+                    if k != "order":
+                        url += f"&{k}={v}"
+                    else:
+                        url += f"&{k}{v}"
+                elif isinstance(v, list) and v:
+                    url += f"&{k}[]={v}"
+        results = await self._get(url)
+        if results["data"]:
+            if isinstance(results["data"], list):
+                return [Cover(c) for c in results["data"]]
+            else:
+                return Cover(results["data"])
+        raise NoResultsFound()

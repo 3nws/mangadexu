@@ -80,3 +80,6 @@ class PyDex:
 
     async def delete_relation(self, id: str, mangaId: str):
         return await self.http._delete_relation(id, mangaId)
+
+    async def get_covers(self, **kwargs):
+        return await self.http._get_covers(**kwargs)
