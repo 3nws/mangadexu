@@ -83,3 +83,7 @@ class PyDex:
 
     async def get_covers(self, **kwargs):
         return await self.http._get_covers(**kwargs)
+
+    async def get_chapters(self, limit: Optional[int]=10, **kwargs):
+        return await self.http._get_chapters(limit, **kwargs)
+

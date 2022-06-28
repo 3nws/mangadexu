@@ -130,6 +130,8 @@ async def main():
         # await client.delete_relation(manga_id, relation.id)
         # covers = await client.get_covers(limit=5, manga=["a96676e5-8ae2-425e-b549-7f15dd34a6d8", "37f5cce0-8070-4ada-96e5-fa24b1bd4ff9"])
         # print(covers)
+        # chapters = await client.get_chapters(10, manga="32fdfe9b-6e11-4a13-9e36-dcd8ea77b4e4")
+        # print(chapters)
     while True:
         pass
     

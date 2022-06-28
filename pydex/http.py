@@ -101,8 +101,9 @@ class http:
     async def _get(self, url: str) -> Dict[str, Any]:
         if self._session is None:
             await self._make_session()
+        print(url)
         async with self._session.get(url) as res:
-            # print(await res.json())
+            print(await res.json())
             if res.status >= 200 and res.status < 300:
                 resp = await res.read()
                 r = json.loads(resp)
@@ -568,4 +569,87 @@ class http:
                 return [Cover(c) for c in results["data"]]
             else:
                 return Cover(results["data"])
+        raise NoResultsFound()
+
+
+    async def _get_chapters(
+        self,
+        limit: Optional[int],
+        *,
+        manga: Optional[str]=None,
+        title: Optional[str]=None,
+        offset: Optional[int] = None,
+        originalLanguage: str = Tags([], "originalLanguage").tags,
+        excludedOriginalLanguage: str = Tags([], "excludedOriginalLanguage").tags,
+        availableTranslatedLanguage: str = Tags([], "availableTranslatedLanguage").tags,
+        ids: str = Tags([], "ids").tags,
+        contentRating: str = Tags([], "contentRating").tags,
+        excludedGroups: str = Tags([], "excludedGroups").tags,
+        excludedUploaders: str = Tags([], "excludedUploaders").tags,
+        order: str = "[createdAt]=asc&order[updatedAt]=asc&order[publishAt]=asc&order[readableAt]=asc&order[volume]=asc&order[chapter]=asc",
+        includes: str = Tags([], "includes").tags,
+        groups: str = Tags([], "groups").tags,
+        uploader: Optional[str]=None,
+        volume: Optional[str]=None,
+        chapter: Optional[str]=None,
+        includeFutureUpdates: Optional[Union[str, bool]] = True,
+        createdAtSince: str = "",
+        updatedAtSince: str = "",
+        publishAtSince: str = "",
+    ) -> Response:
+
+        if originalLanguage:
+            originalLanguage = Tags(originalLanguage, "originalLanguage").tags
+
+        if excludedOriginalLanguage:
+            excludedOriginalLanguage = Tags(
+                excludedOriginalLanguage, "excludedOriginalLanguage"
+            ).tags
+
+        if availableTranslatedLanguage:
+            availableTranslatedLanguage = Tags(
+                availableTranslatedLanguage, "availableTranslatedLanguage"
+            ).tags
+
+        if includes:
+            includes = Tags(includes, "includes").tags
+
+        if ids:
+            ids = Tags(ids, "ids").tags
+
+        if excludedGroups:
+            excludedGroups = Tags(excludedGroups, "excludedGroups").tags
+
+        if excludedUploaders:
+            excludedUploaders = Tags(excludedUploaders, "excludedUploaders").tags
+
+        if contentRating:
+            contentRating = Tags(contentRating, "contentRating").tags
+        else:
+            contentRating = Tags(ContentRating.all_, "contentRating").tags
+
+        if includeFutureUpdates is not None:
+            includeFutureUpdates = str(includeFutureUpdates).lower()
+
+        url = f"{URLs.base_chapter_url}?limit={limit}"
+        for k, v in locals().items():
+            if k not in ["limit"]:
+                if (
+                    not isinstance(v, self.__class__)
+                    and not isinstance(v, list)
+                    and k != "url"
+                    and v
+                ):
+                    if k != "order":
+                        url += f"&{k}={v}"
+                    else:
+                        url += f"&{k}{v}"
+                elif isinstance(v, list) and v or k in ["contentRating"]:
+                    url += f"&{k}[]={v}"
+        results = await self._get(url)
+        if results["data"]:
+            if isinstance(results["data"], list):
+                return [Chapter(m) for m in results["data"]]
+            else:
+                return Chapter(results["data"])
         raise NoResultsFound()
