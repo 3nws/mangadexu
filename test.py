@@ -1,11 +1,11 @@
 import asyncio
 
-from pydex.client import PyDex
+from mangadexu.client import Mangadexu
 from config import *
 
 
 async def main():
-    async with PyDex(username=USERNAME, password=PASS) as client:
+    async with Mangadexu(username=USERNAME, password=PASS) as client:
         # mangas = await client.manga_search(
         #     "kanojo",
         #     limit=10,

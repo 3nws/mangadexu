@@ -5,7 +5,7 @@ from typing import Optional
 from .http import http, ReqBody, Response
 from .models import *
 
-class PyDex:
+class Mangadexu:
     def __init__(self, *, username: str, email: str = "", password: str) -> None:
         self.username = username
         self.email = email
