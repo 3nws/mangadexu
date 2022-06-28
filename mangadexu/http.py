@@ -1,4 +1,5 @@
 import json
+from wsgiref import headers
 import aiohttp
 import asyncio
 
@@ -10,11 +11,11 @@ from typing import (
     Union,
     Literal,
 )
-from aiohttp import ClientSession
+from aiohttp import ClientSession, FormData
 from .models import *
 from .exceptions import *
 
-ReqBody = Dict[str, Any]
+ReqBody = Union[Dict[str, Any], FormData]
 Response = Optional[Union[Manga, List[Manga], Chapter, List[Chapter], ReqBody, MangaRelation, Cover, List[Cover]]]
 
 
@@ -80,6 +81,7 @@ class http:
                     self._session_token = r["token"]["session"]
                     self._refresh_token = r["token"]["refresh"]
                     self.headers["Authorization"] = f"Bearer {self._session_token}"
+                    self.headers["accept"] = "application/json"
                     await self._session.close()
                     self._session = aiohttp.ClientSession(headers=self.headers)
                     self._logged = True
@@ -110,20 +112,38 @@ class http:
                 return r
             raise APIError()
 
-    async def _post(self, url: str, payload: ReqBody) -> Response:
+    async def _post(self, url: str, **kwargs: ReqBody) -> Response:
         if self._session is None:
             await self._make_session()
-        async with self._session.post(url, json=payload) as res:
-            # print(await res.json())
-            if res.status >= 200 and res.status < 300:
-                resp = await res.read()
-                r = json.loads(resp)
-                if r:
-                    if r.get("type", "") == "manga_relation":
-                        return MangaRelation(r.get("data", None))
-                    return Manga(r.get("data", None))
-                raise NoResultsFound()
-            raise APIError()
+        if "json" in kwargs:
+            async with self._session.post(url, json=kwargs["json"]) as res:
+                # print(await res.json())
+                if res.status >= 200 and res.status < 300:
+                    resp = await res.read()
+                    r = json.loads(resp)
+                    if r:
+                        if r.get("type", "") == "cover_art":
+                            return Cover(r.get("data", None))
+                        if r.get("type", "") == "manga_relation":
+                            return MangaRelation(r.get("data", None))
+                        return Manga(r.get("data", None))
+                    raise NoResultsFound()
+                raise APIError()
+        else:
+            async with self._session.post(url, data=kwargs["data"]) as res:
+                print(await res.read())
+                # print(await res.json())
+                if res.status >= 200 and res.status < 300:
+                    resp = await res.read()
+                    r = json.loads(resp)
+                    if r:
+                        if r.get("type", "") == "cover_art":
+                            return Cover(r.get("data", None))
+                        if r.get("type", "") == "manga_relation":
+                            return MangaRelation(r.get("data", None))
+                        return Manga(r.get("data", None))
+                    raise NoResultsFound()
+                raise APIError()
 
     async def _put(self, url: str, payload: ReqBody) -> Response:
         if self._session is None:
@@ -230,7 +250,7 @@ class http:
         if hasAvailableChapters is not None:
             hasAvailableChapters = str(hasAvailableChapters).lower()
 
-        url = f"{URLs.base_search_url}?limit={limit}&title={title}"
+        url = f"{URLs.base_search_url}"
         for k, v in locals().items():
             if k not in ["limit", "title"]:
                 if (
@@ -318,7 +338,7 @@ class http:
 
     async def _create_manga(self, manga: ReqBody) -> Response:
         url = f"{URLs.base_search_url}"
-        return await self._post(url, manga)
+        return await self._post(url, json=manga)
 
     async def _update_manga(self, id: str, manga: ReqBody) -> Response:
         url = f"{URLs.base_search_url}"
@@ -439,7 +459,7 @@ class http:
         url = f"{URLs.base_search_url}/{id}/status"
         if status is None:
             status = "null"
-        return await self._post(url, {"status": status})
+        return await self._post(url, json={"status": status})
 
     async def _get_manga_draft(
         self,
@@ -455,7 +475,7 @@ class http:
 
     async def _submit_manga_draft(self, id: str, manga: ReqBody) -> Response:
         url = f"{URLs.base_search_url}/draft/{id}/commit"
-        return await self._post(url, manga)
+        return await self._post(url, json=manga)
 
     async def _get_drafts(
         self,
@@ -513,7 +533,7 @@ class http:
         ],
     ) -> Response:
         url = f"{URLs.base_search_url}/{id}/relation"
-        return await self._post(url, {
+        return await self._post(url, json={
             "targetManga": targetManga,
             "relation": relation
         })
@@ -571,6 +591,24 @@ class http:
                 return Cover(results["data"])
         raise NoResultsFound()
 
+    async def _upload_cover(
+        self,
+        id: str,
+        image: bytes,
+        volume: int,
+        description: str,
+        locale: str,
+    ) -> Response:
+        url = f"{URLs.cover_url}/{id}"
+        self._session.headers["Content-Type"] = "multipart/form-data"
+        form = FormData()
+        form.add_field("file", value=image, content_type="image/jpeg")
+        form.add_field("volume", value=str(volume))
+        form.add_field("description", value=description)
+        form.add_field("locale", value=locale)
+        res = await self._post(url, data=form)
+        self._session.headers["Content-Type"] = "application/json"
+        return res
 
     async def _get_chapters(
         self,

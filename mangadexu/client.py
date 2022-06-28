@@ -5,7 +5,7 @@ from typing import Optional
 from .http import http, ReqBody, Response
 from .models import *
 
-class PyDex:
+class Mangadexu:
     def __init__(self, *, username: str, email: str = "", password: str) -> None:
         self.username = username
         self.email = email
@@ -83,6 +83,9 @@ class PyDex:
 
     async def get_covers(self, **kwargs):
         return await self.http._get_covers(**kwargs)
+        
+    async def upload_cover(self, id: str, **kwargs):
+        return await self.http._upload_cover(id, **kwargs)
 
     async def get_chapters(self, limit: Optional[int]=10, **kwargs):
         return await self.http._get_chapters(limit, **kwargs)
