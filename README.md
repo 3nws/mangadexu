@@ -1,5 +1,3 @@
-# mangadexu
-
 # use hondana
 
 A WIP async API wrapper for the mangadex API. 
